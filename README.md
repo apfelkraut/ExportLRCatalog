@@ -11,8 +11,8 @@ Bash script that exports all photos of a Adobe Lightroom (LR) Catalog to the fil
 1. Make a backup of your LR catalog (ideally use this one for export)
 1. Make a backup of your image directory
 1. Check that you have sufficient disk space in your export directory
-1. Adjust the CONFIGURATION section within [`./ExportLRCollections.sh`](ExportLRCollections.sh) to your needs and environment
-1. Run [`./ExportLRCollections.sh`](ExportLRCollections.sh)
+1. Adjust the CONFIGURATION section within [`./ExportLRCatalog.sh`](ExportLRCatalog.sh) to your needs and environment
+1. Run [`./ExportLRCatalog.sh`](ExportLRCatalog.sh)
 
 ## DOCUMENTATION
 ...
