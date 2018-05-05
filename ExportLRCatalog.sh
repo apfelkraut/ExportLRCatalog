@@ -71,7 +71,7 @@ function query
 function checkNullOrEmpty
 {
   if [[ -z "$1" || $1 == "" ]]; then
-    echo ERROR: found null or empty variable, exiting ...
+    echo "ERROR: found NULL or EMPTY variable in <$2>, exiting ..."
     exit 1
   fi
 }
@@ -258,10 +258,11 @@ function copyFile
 {
   # FIXME - integrity of image data could be checked if required
 
-  checkNullOrEmpty $1
-  checkNullOrEmpty $2
-  checkNullOrEmpty $3
-  checkNullOrEmpty $4
+  # Check for null values
+  checkNullOrEmpty $1 "copyFile P1"
+  checkNullOrEmpty $2 "copyFile P2"
+  checkNullOrEmpty $3 "copyFile P3"
+  checkNullOrEmpty $4 "copyFile P4"
 
   local SOURCE
   local DESTINATION
@@ -315,9 +316,9 @@ function copyFile
 #
 function exportImages
 {
-
-  checkNullOrEmpty $1
-  checkNullOrEmpty $2
+  # Check for null values
+  checkNullOrEmpty $1 "exportImages P1"
+  checkNullOrEmpty $2 "exportImages P2"
 
   # Counters for proper stats
   local IMGCOUNTER
@@ -366,6 +367,10 @@ function exportImages
     currrentImageFileName=$(getImageFileName $j)
 
     # Export image file
+    # DEBUG echo "Image File Name: <$currrentImageFileName>"
+    # DEBUG echo "Import Path: <$currentImageImportPath>"
+    # DEBUG echo "File ID: <$j>"
+    # DEBUG echo "Export Path: <$2>"
     copyFile "$currrentImageFileName" "$currentImageImportPath" "$j" "$2"
     let IMGCOUNTER++
 
@@ -412,7 +417,18 @@ function exportCollections
     currrentImageExportPath=$(getImageExportPath $i)
 
     # Export Images
-    exportImages "$(getImageIdsInCollection $i)" "$currrentImageExportPath"
+    # DEBUG echo "Collection ID: <$i>"
+    # DEBUG echo "Export Path <$currrentImageExportPath>"
+
+    # Get IDs of images within current collection
+    local currentImageIds
+    currentImageIds=$(getImageIdsInCollection $i)
+
+    # Check if current collection really contains any images
+    if [ "$currentImageIds" != "" ];
+    then
+      exportImages "$currentImageIds" "$currrentImageExportPath"
+    fi
 
   done
 
@@ -439,6 +455,9 @@ function exportImagesNotInAnyCollection
   # Base name of unspecified folder(s)
   folderBaseName="Unspezifiziert"
 
+  # Current image Ids
+  local currentImageIds
+
   # Prepare years string
   separateYears=${YEARS//\'/} # remove quote
   separateYears=${separateYears//(/} # remove opening bracket
@@ -451,12 +470,12 @@ function exportImagesNotInAnyCollection
   # Get images for given years
   for i in $separateYears;
   do
+    # Get IDs of images within current year
     currentImageIds=$(getImageIdsNotInAnyCollectionByYear $i)
 
     # In case there are images for given years
     if [ "$currentImageIds" != "" ];
     then
-
       # Define export path
       currrentImageExportPath="$i $folderBaseName"
 
@@ -479,7 +498,6 @@ function exportImagesNotInAnyCollection
   fi
 
   # Export left images for other years
-  # echo "$(getImageIdsNotInAnyCollectionFilterByYears $sqlWHERE)"
   currentImageIds=$(getImageIdsNotInAnyCollectionFilterByYears $sqlWHERE)
   if [ "$currentImageIds" != "" ];
   then
