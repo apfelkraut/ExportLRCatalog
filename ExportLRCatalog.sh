@@ -157,7 +157,7 @@ function getImageIdsInCollection
 
 #
 # Input         $1      the id of a collection
-# Return                the images and specific details of given collection
+# Return                the image specific details of given collection
 #
 function getImageDetailsInCollection
 {
@@ -166,7 +166,7 @@ function getImageDetailsInCollection
 
 #
 # Input         $1      the year to get images for that are not part of any collection
-# Return                the ids of images outside of any collection captured within specific year
+# Return                the image specific details outside of any collection captured within given year
 #
 function getImageDetailsNotInAnyCollectionByYear
 {
@@ -175,7 +175,7 @@ function getImageDetailsNotInAnyCollectionByYear
 
 #
 # Input         $1      the filter WHERE statement for years to exclude
-# Return                the ids of images outside of any collection captured outside of given years
+# Return                the image specific details outside of any collection captured outside of given years
 #
 function getImageDetailsNotInAnyCollectionFilterByYears
 {
@@ -228,6 +228,7 @@ function getImageExportPath
 function copyFile
 {
   # FIXME - integrity of image data could be checked if required
+  # FIXME - support resume
 
   # Check for null values
   checkNullOrEmpty $1 "copyFile P1"
@@ -330,6 +331,7 @@ function exportImages
 
     # FIXME get full path to support different root folders in case no $IMPORTDIR is provided
 
+    local detailsArray
     local currrentImageFileId
     local currrentImageFileName
     local currentImageSidecarExtensions
@@ -339,10 +341,9 @@ function exportImages
     DEFAULT_IFS=$IFS
 
     # Split image details
-    local detailsArray
     IFS='|' read -a detailsArray <<< "$j"
 
-    # restore default IFS
+    # Restore default IFS
     IFS=$DEFAULT_IFS
 
     # Get current image id
@@ -402,15 +403,15 @@ function exportCollections
     local currrentImageExportPath
     currrentImageExportPath=$(getImageExportPath $i)
 
-    # Get IDs of images within current collection
-    local currentImageDetails
-    currentImageDetails=$(getImageDetailsInCollection $i)
+    # Get details of images within current collection
+    local currentImagesDetails
+    currentImagesDetails=$(getImageDetailsInCollection $i)
 
     # Check if current collection really contains any images
-    if [ "$currentImageDetails" != "" ];
+    if [ "$currentImagesDetails" != "" ];
     then
       # Export Images
-      exportImages "$currentImageDetails" "$currrentImageExportPath"
+      exportImages "$currentImagesDetails" "$currrentImageExportPath"
     fi
 
   done
@@ -438,8 +439,8 @@ function exportImagesNotInAnyCollection
   # Base name of unspecified folder(s)
   folderBaseName="Unspezifiziert"
 
-  # Current image Ids
-  local currentImageDetails
+  # Current image details
+  local currentImagesDetails
 
   # Prepare years string
   separateYears=${YEARS//\'/} # remove quote
@@ -453,17 +454,17 @@ function exportImagesNotInAnyCollection
   # Get images for given years
   for i in $separateYears;
   do
-    # Get IDs of images within current year
-    currentImageDetails=$(getImageDetailsNotInAnyCollectionByYear $i)
+    # Get details of images within current year
+    currentImagesDetails=$(getImageDetailsNotInAnyCollectionByYear $i)
 
     # In case there are images for given years
-    if [ "$currentImageDetails" != "" ];
+    if [ "$currentImagesDetails" != "" ];
     then
       # Define export path
       currrentImageExportPath="$i $folderBaseName"
 
       # Export Images
-      exportImages "$currentImageDetails" "$currrentImageExportPath"
+      exportImages "$currentImagesDetails" "$currrentImageExportPath"
 
       # Append SQL WHERE
       if [ "$sqlWHERE" != "" ];
@@ -481,10 +482,10 @@ function exportImagesNotInAnyCollection
   fi
 
   # Export left images for other years
-  currentImageDetails=$(getImageDetailsNotInAnyCollectionFilterByYears $sqlWHERE)
-  if [ "$currentImageDetails" != "" ];
+  currentImagesDetails=$(getImageDetailsNotInAnyCollectionFilterByYears $sqlWHERE)
+  if [ "$currentImagesDetails" != "" ];
   then
-    exportImages "$currentImageDetails" "$folderBaseName"
+    exportImages "$currentImagesDetails" "$folderBaseName"
   fi
 
   # Inform about end of non-collections export
@@ -502,22 +503,68 @@ exec 2>$ERRORLOGFILE
 # Immediately stop in case of error
 # set -e
 
-# FIXME check if LR catalog can be found
-# FIXME check if export directory is writable
+# Check if LR catalog exists
+if [ ! -f "$CATALOG" ];
+then
+  echo -e "LR catalog not found at $CATALOG."
+  exit 1
+fi
 
 # Check if LR application is open and locking the catalog
 if [ -f "$LOCK_FILE" ];
 then
-  echo -e "Catalog appears to be locked. Please quit Lightroom before running this script."
+  echo -e "LR catalog appears to be locked. Please quit Lightroom before running this script."
+  exit 1
+fi
+
+# Check if import directory exists
+if [ ! -d "$IMPORTDIR" ] ;
+then
+  echo -e "Import directory $IMPORTDIR not found."
+  exit 1
+fi
+
+# Check if export directory exists
+if [ ! -d "$EXPORTDIR" ] ;
+then
+  echo -e "Export directory $EXPORTDIR not found."
+  exit 1
+fi
+
+# Check if export directory is writeable
+if ! touch $DEBUGLOGFILE || ! touch $ERRORLOGFILE ;
+then
+  echo -e "Export directory $EXPORTDIR it not writable."
+  exit 1
+fi
+
+# Check if sqlite3 is available
+if ! which sqlite3 ;
+then
+  echo -e "Command line interface for SQLite 3 (sqlite3) not found."
+  exit 1
+fi
+
+# Check if sed is available
+if ! which sed ;
+then
+  echo -e "GNU stream editor (sed) not found."
+  exit 1
+fi
+
+# Check if bc is available
+if ! which bc ;
+then
+  echo -e "GNU bc (bc) not found."
   exit 1
 fi
 
 # Now let's really start
 startCatMsg="$(date +%Y-%m-%d' '%H:%M:%S) [START] Starting exporting all collections of LR catalog <$CATALOG> ..."
 
-echo -e $startCatMsg > $ERRORLOGFILE
+echo -e $startCatMsg >> $ERRORLOGFILE
 
-# generate statistics
+# Generate statistics
 numAllCollections=$(countAllCollections)
 numImagesInAnyCollection=$(countImagesInAnyCollection)
 numImagesInAnyCollectionDistinct=$(countImagesInAnyCollectionDistinct)
@@ -526,39 +573,39 @@ numImagesFiles=$(countImagesFiles)
 numLRImages=$(countLRImages)
 duplicationRate=`echo "scale=3;$numImagesInAnyCollection/$numImagesInAnyCollectionDistinct" | bc -l`
 
-# header of stats
+# Header of stats
 startCatMsg+="\n"
 startCatMsg+="------- Catalog Statistics -------"
 
-# add number of collections to be exported
+# Add number of collections to be exported
 startCatMsg+="\n"
 startCatMsg+="Collections: $numAllCollections"
 startCatMsg+="\n"
 
-# add total number of images in collections plus duplication of images within all collections
+# Add total number of images in collections plus duplication of images within all collections
 startCatMsg+="Images in collections: $numImagesInAnyCollection (duplication rate: $duplicationRate)"
 startCatMsg+="\n"
 
-# add total number of images not in any collection
+# Add total number of images not in any collection
 startCatMsg+="Images w/o collection: $numImagesNotInAnyCollection"
 startCatMsg+="\n"
 
-# add total number of LR images (including virtual copies)
+# Add total number of LR images (including virtual copies)
 startCatMsg+="Total LR images: $numLRImages (incl. virtual copies)"
 startCatMsg+="\n"
 
-# add total number of image files
+# Add total number of image files
 startCatMsg+="Total image files: $numImagesFiles"
 startCatMsg+="\n"
 
-# footer of stats
+# Footer of stats
 startCatMsg+="----------------------------------"
 
 echo -e $startCatMsg
-echo -e $startCatMsg > $DEBUGLOGFILE
+echo -e $startCatMsg >> $DEBUGLOGFILE
 
-# export all images that are part of a collections
+# Export all images that are part of a collections
 exportCollections
 
-# export all images that are part of a collections
+# Export all images that are part of a collections
 exportImagesNotInAnyCollection

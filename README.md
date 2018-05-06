@@ -1,5 +1,5 @@
 # ExportLRCatalog.sh
-Bash script that exports all photos of a Adobe Lightroom (LR) Catalog to the filesystem.
+Bash script that exports all photos of a Adobe Lightroom (LR) Catalog.lrcat to the filesystem.
 
 * Images that are part of a collection will be exported to a directory. One directory per collection.
 * Images that are not part of any collection will be exported in one or more dedicated directories (if configured).
@@ -18,7 +18,7 @@ Bash script that exports all photos of a Adobe Lightroom (LR) Catalog to the fil
 * Free alternatives have matured over the years. Depending on personal perception and preferences they might have already outperformed LR in respected to functionality and usability. At least in respect to user's freedoms. There is e.g. [Darktable](https://www.darktable.org/), [RawTherapee](http://rawtherapee.com/), or [digiKam](https://www.digikam.org/) to name just a few.
 * Those but even any proprietary alternatives do not offer to migrate/import the LR catalog en bloc. The only workaround is via the filesystem. So that the image collection structure is represented by (sub)directories if you do not want to or simply cannot rely on your images' metadata.
 * A typical LR image repository is organized within subdirectories of YYYY/MM/DD, which might not be the preferred structure to bring to any other application.
-* A collection can be exported by hand. But as one typically has many collections, this might not be what you really want to do manually.
+* A collection can be exported by hand. But as one typically has many collections that have been carefully structured, this might not be what you really want to do manually.
 * The LR catalog (`.lrcat`) is actually a [SQLite](https://sqlite.org/) database file that can be opened with any compatible tooling.
 
 ## LIMITATIONS
@@ -27,17 +27,18 @@ Bash script that exports all photos of a Adobe Lightroom (LR) Catalog to the fil
 * As an image can be part of 1-n collection(s), some/many images will get duplicated.
 * Virtual copies will be ignored and not get exported.
 * Currently only a single root location where all of your image folders are located is supposed (e.g. `$HOME/Pictures`).
-* Implementation is far from being efficient.
-* Error handling is far from being perfect.
-* Currently tested only on macOS with LR version 6
+* Implementation could be more efficient.
+* Error handling could be more effective.
+* Currently tested on Debian 9.4 and macOS 10.13 with a LR version 6 based catalog.
 
 ## PREREQUISITE
 * Make sure that the XMP sidecar files are enabled in your LR application
 * Make sure that all metadata are synced to the actual files via your LR application
 * Prepare your LR catalog (via the LR application if you still have it)
-  * Delete any unnecessary collections to prevent image file duplication (current duplication rate will be displayed)
+  * Delete any unnecessary collections to prevent image file duplication (current duplication rate will be displayed).
   * Create new collections for images that you want to have within a dedicated subdirectory. To find any image that are not part of a collection you could e.g. create the following Smart-Collection within LR assuming that you do not use any strange filenames:
            `{Collection}{doesn't contain}{a e i o u 0 1 2 3 4 5 6 7 8 9}`
+* Delete any images that are no longer required.
 * Make sure that you have sufficient disk space in your export directory
 * You need to have `bash`, `sed`, `sqlite3`, and `bc` available in your `$PATH` on a POSIX-compliant environment like Linux or macOS
 
@@ -52,6 +53,9 @@ Bash script that exports all photos of a Adobe Lightroom (LR) Catalog to the fil
 ## LICENSE
 GNU GPLv3, see [LICENSE](LICENSE) for details.
 
-## CREDITS
+## ACKNOWLEDGEMENT
 * Inspired by https://photo.stackexchange.com/a/65153 by fabrizio
-* Thanks to Adobe Systems Inc. for a still great LR (Classic) and implementing its catalog in form of a freely accessible SQLite database
+* Useful visualization of the table structure: ["Getting to the data in Adobe Lightroom–with or without PowerShell"](https://jamesone111.wordpress.com/2012/08/09/getting-to-the-data-in-adobe-lightroomwith-or-without-powershell/)
+* Similar Python-based approach: https://github.com/philroche/py-lightroom-export
+* Similar Rust-based approach: https://github.com/hfiguiere/lrcat-extractor
+* Special thanks to Adobe Systems Inc. for a still great LR (Classic) and implementing its catalog in form of a freely accessible SQLite database
