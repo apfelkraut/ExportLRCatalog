@@ -70,67 +70,10 @@ function query
 #
 function checkNullOrEmpty
 {
-  if [[ -z "$1" || $1 == "" ]]; then
+  if [[ -z "$1" || "$1" == "" ]]; then
     echo "ERROR: found NULL or EMPTY variable in <$2>, exiting ..."
     exit 1
   fi
-}
-
-#
-# Input         $1      the id of a collection
-# Return                the name of the collection
-#
-function getCollectionName
-{
-  query "SELECT name FROM AgLibraryCollection WHERE AgLibraryCollection.id_local = $1;"
-}
-
-#
-# Input         $1      the id of a collection
-# Return                the type of the collection
-#
-function getCollectionType
-{
-  query "SELECT creationId FROM AgLibraryCollection WHERE AgLibraryCollection.id_local = $1;"
-}
-
-#
-# Input         $1      the id of a collection
-# Return                the id of the parent collection
-#
-function getCollectionParent
-{
-  if [ "$1" != "" ];
-  then
-    query "SELECT parent FROM AgLibraryCollection WHERE AgLibraryCollection.id_local = $1;"
-  fi
-}
-
-#
-# Input         $1      the id of a collection
-# Return                the ids of images contained in the collection
-#
-function getImageIdsInCollection
-{
-  echo `query "SELECT lf.id_local FROM AgLibraryCollection AS c JOIN AgLibraryCollectionImage AS ci ON c.id_local = ci.collection JOIN Adobe_images AS i ON i.id_local = ci.image JOIN AgLibraryFile AS lf ON lf.id_local = i.rootFile WHERE i.copyName IS NULL AND c.id_local = $1;"`
-}
-
-#
-# Input         $1      the year to get images for that are not part of any collection
-# Return                the ids of images outside of any collection captured within specific year
-#
-function getImageIdsNotInAnyCollectionByYear
-{
-  echo `query "SELECT lf.id_local FROM AgLibraryFile AS lf JOIN Adobe_images AS i ON i.rootFile = lf.id_local WHERE i.captureTime LIKE '$1%' AND i.copyName IS NULL AND lf.id_local NOT IN (SELECT lf.id_local FROM AgLibraryCollection AS c JOIN AgLibraryCollectionImage AS ci ON c.id_local = ci.collection JOIN Adobe_images AS i ON i.id_local = ci.image JOIN AgLibraryFile AS lf ON lf.id_local = i.rootFile WHERE i.copyName IS NULL AND c.creationId='com.adobe.ag.library.collection' AND c.id_local NOT IN $BLACKLISTEDCOLLECTIONS);"`
-}
-
-#
-# Input         $1      the filter WHERE statement for years to exclude
-# Return                the ids of images outside of any collection captured outside of given years
-#
-function getImageIdsNotInAnyCollectionFilterByYears
-{
-  echo `query "SELECT lf.id_local FROM AgLibraryFile AS lf JOIN Adobe_images AS i ON i.rootFile = lf.id_local WHERE $1 i.copyName IS NULL AND lf.id_local NOT IN (SELECT lf.id_local FROM AgLibraryCollection AS c JOIN AgLibraryCollectionImage AS ci ON c.id_local = ci.collection JOIN Adobe_images AS i ON i.id_local = ci.image JOIN AgLibraryFile AS lf ON lf.id_local = i.rootFile WHERE i.copyName IS NULL AND c.creationId='com.adobe.ag.library.collection' AND c.id_local NOT IN $BLACKLISTEDCOLLECTIONS);"`
 }
 
 #
@@ -138,7 +81,7 @@ function getImageIdsNotInAnyCollectionFilterByYears
 #
 function countImagesNotInAnyCollection
 {
-  query "SELECT count(id_local) FROM AgLibraryFile WHERE id_local NOT IN (SELECT lf.id_local FROM AgLibraryCollection AS c JOIN AgLibraryCollectionImage AS ci ON c.id_local = ci.collection JOIN Adobe_images AS i ON i.id_local = ci.image JOIN AgLibraryFile AS lf ON lf.id_local = i.rootFile WHERE i.copyName IS NULL AND c.creationId='com.adobe.ag.library.collection' AND c.id_local NOT IN $BLACKLISTEDCOLLECTIONS);"
+  query "SELECT count(id_local) FROM AgLibraryFile WHERE id_local NOT IN (SELECT lf.id_local FROM AgLibraryCollection AS c JOIN AgLibraryCollectionImage AS ci ON c.id_local == ci.collection JOIN Adobe_images AS i ON i.id_local == ci.image JOIN AgLibraryFile AS lf ON lf.id_local == i.rootFile WHERE i.copyName IS NULL AND c.creationId='com.adobe.ag.library.collection' AND c.id_local NOT IN $BLACKLISTEDCOLLECTIONS);"
 }
 
 #
@@ -146,7 +89,7 @@ function countImagesNotInAnyCollection
 #
 function countImagesInAnyCollection
 {
-  query "SELECT count(lf.id_local) FROM AgLibraryCollection AS c JOIN AgLibraryCollectionImage AS ci ON c.id_local = ci.collection JOIN Adobe_images AS i ON i.id_local = ci.image JOIN AgLibraryFile AS lf ON lf.id_local = i.rootFile WHERE i.copyName IS NULL AND c.creationId='com.adobe.ag.library.collection' AND c.id_local NOT IN $BLACKLISTEDCOLLECTIONS;"
+  query "SELECT count(lf.id_local) FROM AgLibraryCollection AS c JOIN AgLibraryCollectionImage AS ci ON c.id_local == ci.collection JOIN Adobe_images AS i ON i.id_local == ci.image JOIN AgLibraryFile AS lf ON lf.id_local == i.rootFile WHERE i.copyName IS NULL AND c.creationId='com.adobe.ag.library.collection' AND c.id_local NOT IN $BLACKLISTEDCOLLECTIONS;"
 }
 
 #
@@ -154,7 +97,7 @@ function countImagesInAnyCollection
 #
 function countImagesInAnyCollectionDistinct
 {
-  query "SELECT count(DISTINCT lf.id_local) FROM AgLibraryCollection AS c JOIN AgLibraryCollectionImage AS ci ON c.id_local = ci.collection JOIN Adobe_images AS i ON i.id_local = ci.image JOIN AgLibraryFile AS lf ON lf.id_local = i.rootFile WHERE i.copyName IS NULL AND c.creationId='com.adobe.ag.library.collection' AND c.id_local NOT IN $BLACKLISTEDCOLLECTIONS;"
+  query "SELECT count(DISTINCT lf.id_local) FROM AgLibraryCollection AS c JOIN AgLibraryCollectionImage AS ci ON c.id_local == ci.collection JOIN Adobe_images AS i ON i.id_local == ci.image JOIN AgLibraryFile AS lf ON lf.id_local == i.rootFile WHERE i.copyName IS NULL AND c.creationId='com.adobe.ag.library.collection' AND c.id_local NOT IN $BLACKLISTEDCOLLECTIONS;"
 }
 
 #
@@ -174,32 +117,69 @@ function countLRImages
 }
 
 #
+# Return                the count of all collections
+#
+function countAllCollections
+{
+  # Blacklist
+  echo `query "SELECT count(id_local) FROM AgLibraryCollection WHERE creationId='com.adobe.ag.library.collection' and id_local NOT IN $BLACKLISTEDCOLLECTIONS;"`
+}
+
+#
+# Input         $1      the id of a collection
+# Return                the name of the collection
+#
+function getCollectionName
+{
+  query "SELECT name FROM AgLibraryCollection WHERE AgLibraryCollection.id_local == $1;"
+}
+
+#
 # Input         $1      the id of a collection
 # Return                the id of the parent collection
-# Note: LR stores the path including a slash at the end.
-#       Will be removed for reasons of consistency ...
 #
-function getImageImportPath
+function getCollectionParent
 {
-  echo `query "SELECT lfo.PathFromRoot FROM AgLibraryFile AS lfi JOIN AgLibraryFolder AS lfo ON lfo.id_local = lfi.folder WHERE lfi.id_local = $1;"` | sed 's/.$//'
-}
-
-#
-# Input         $1      the id of a image
-# Return                the name of the image file
-#
-function getImageFileName
-{
-  query "SELECT lf.idx_filename FROM AgLibraryFile AS lf WHERE lf.id_local = $1;"
+  if [ "$1" != "" ];
+  then
+    query "SELECT parent FROM AgLibraryCollection WHERE AgLibraryCollection.id_local == $1;"
+  fi
 }
 
 #
 # Input         $1      the id of a collection
-# Return                the name of the image's sidecar file if any
+# Return                the ids of images contained in the collection
 #
-function getImageSidecarFileName
+function getImageIdsInCollection
 {
-  query "SELECT lf.baseName || '.xmp' FROM AgLibraryFile AS lf WHERE lf.id_local = $1 AND NOT (lf.sidecarExtensions='' OR lf.sidecarExtensions IS NULL OR lf.sidecarExtensions='JPG' OR lf.sidecarExtensions='THM');"
+  echo `query "SELECT lf.id_local FROM AgLibraryCollection AS c JOIN AgLibraryCollectionImage AS ci ON c.id_local == ci.collection JOIN Adobe_images AS i ON i.id_local == ci.image JOIN AgLibraryFile AS lf ON lf.id_local == i.rootFile WHERE i.copyName IS NULL AND c.id_local == $1;"`
+}
+
+#
+# Input         $1      the id of a collection
+# Return                the images and specific details of given collection
+#
+function getImageDetailsInCollection
+{
+  echo `query "SELECT lf.id_local, lf.idx_filename, lf.sidecarExtensions, lfo.PathFromRoot FROM AgLibraryCollection AS c JOIN AgLibraryCollectionImage AS ci ON c.id_local == ci.collection JOIN Adobe_images AS i ON i.id_local == ci.image JOIN AgLibraryFile AS lf ON lf.id_local == i.rootFile JOIN AgLibraryFolder AS lfo ON lfo.id_local == lf.folder WHERE i.copyName IS NULL AND c.id_local == $1;"`
+}
+
+#
+# Input         $1      the year to get images for that are not part of any collection
+# Return                the ids of images outside of any collection captured within specific year
+#
+function getImageDetailsNotInAnyCollectionByYear
+{
+  echo `query "SELECT lf.id_local, lf.idx_filename, lf.sidecarExtensions, lfo.PathFromRoot FROM Adobe_images AS i JOIN AgLibraryFile AS lf ON i.rootFile == lf.id_local JOIN AgLibraryFolder AS lfo ON lfo.id_local == lf.folder WHERE i.captureTime LIKE '$1%' AND i.copyName IS NULL AND lf.id_local NOT IN (SELECT lf.id_local FROM AgLibraryCollection AS c JOIN AgLibraryCollectionImage AS ci ON c.id_local == ci.collection JOIN Adobe_images AS i ON i.id_local == ci.image JOIN AgLibraryFile AS lf ON lf.id_local == i.rootFile WHERE i.copyName IS NULL AND c.creationId='com.adobe.ag.library.collection' AND c.id_local NOT IN $BLACKLISTEDCOLLECTIONS);"`
+}
+
+#
+# Input         $1      the filter WHERE statement for years to exclude
+# Return                the ids of images outside of any collection captured outside of given years
+#
+function getImageDetailsNotInAnyCollectionFilterByYears
+{
+  echo `query "SELECT lf.id_local, lf.idx_filename, lf.sidecarExtensions, lfo.PathFromRoot FROM Adobe_images AS i JOIN AgLibraryFile AS lf ON i.rootFile == lf.id_local JOIN AgLibraryFolder AS lfo ON lfo.id_local == lf.folder WHERE $1 i.copyName IS NULL AND lf.id_local NOT IN (SELECT lf.id_local FROM AgLibraryCollection AS c JOIN AgLibraryCollectionImage AS ci ON c.id_local == ci.collection JOIN Adobe_images AS i ON i.id_local == ci.image JOIN AgLibraryFile AS lf ON lf.id_local == i.rootFile WHERE i.copyName IS NULL AND c.creationId='com.adobe.ag.library.collection' AND c.id_local NOT IN $BLACKLISTEDCOLLECTIONS);"`
 }
 
 #
@@ -209,15 +189,6 @@ function getAllCollectionIDs
 {
   # Blacklist
   query "SELECT id_local FROM AgLibraryCollection WHERE creationId='com.adobe.ag.library.collection' and id_local NOT IN $BLACKLISTEDCOLLECTIONS;"
-}
-
-#
-# Return                the count of all collections
-#
-function countAllCollections
-{
-  # Blacklist
-  echo `query "SELECT count(id_local) FROM AgLibraryCollection WHERE creationId='com.adobe.ag.library.collection' and id_local NOT IN $BLACKLISTEDCOLLECTIONS;"`
 }
 
 #
@@ -237,7 +208,7 @@ function getImageExportPath
     then
       break
     fi
-    if [ "$FLATEXPORT" = "true" ]; then
+    if [ "$FLATEXPORT" == "true" ]; then
       # Generate export path by using separator (single directory)
       exportPath="$(getCollectionName $currentCollectionId)$COLLECTIONHIERACHYSEP$exportPath"
     else
@@ -270,7 +241,7 @@ function copyFile
   SOURCE=$IMPORTDIR/$2/$1
 
   # check if file shall be renamed
-  if [ "$RENAME" = "true" ];
+  if [ "$RENAME" == "true" ];
   then
     # prefix for new filename
     prefixNewFilename="ALR_"
@@ -287,14 +258,14 @@ function copyFile
     DESTINATION="$EXPORTDIR/$4/$1"
   fi
 
-  if [ "$DRYRUN" = "true" ];
+  if [ "$DRYRUN" == "true" ];
   then
     echo -e "$(date +%Y-%m-%d' '%H:%M:%S) [DRYRUN] Exporting $SOURCE to $DESTINATION ..." >> $DEBUGLOGFILE
   else
     if cp "$SOURCE" "$DESTINATION" ;
     then
       # if files are being renamed also rename filename within sidecar file
-      if [[ "$RENAME" = "true" && "$fileExtension" = "xmp" ]];
+      if [[ "$RENAME" == "true" && "$fileExtension" == "xmp" ]];
       then
         # make backup of original sidecar file
         mv "$DESTINATION" "$DESTINATION.bak"
@@ -342,7 +313,7 @@ function exportImages
   # Check if export path for collection already exists
   if [ ! -d "$currentExportDir" ]; then
     # Path does not exist => create it
-    if [ "$DRYRUN" = "true" ]; then
+    if [ "$DRYRUN" == "true" ]; then
       echo -e "$(date +%Y-%m-%d' '%H:%M:%S) [DRYRUN] Creating directory $currentExportDir ..." >> $DEBUGLOGFILE
     else
       if mkdir -p "$currentExportDir" ;
@@ -357,34 +328,49 @@ function exportImages
   # Copy all images of collection to export directory
   for j in $1; do
 
-    # Get current image path
     # FIXME get full path to support different root folders in case no $IMPORTDIR is provided
+
+    local currrentImageFileId
+    local currrentImageFileName
+    local currentImageSidecarExtensions
     local currentImageImportPath
-    currentImageImportPath=$(getImageImportPath $j)
+
+    # Save default IFS
+    DEFAULT_IFS=$IFS
+
+    # Split image details
+    local detailsArray
+    IFS='|' read -a detailsArray <<< "$j"
+
+    # restore default IFS
+    IFS=$DEFAULT_IFS
+
+    # Get current image id
+    currrentImageFileId=${detailsArray[0]}
 
     # Get currrent image file name
-    local currrentImageFileName
-    currrentImageFileName=$(getImageFileName $j)
+    currrentImageFileName=${detailsArray[1]}
+
+    # Get current sidecar file extensions if any
+    currentImageSidecarExtensions=${detailsArray[2]}
+
+    # Get currrent image file name without trailing slash
+    currentImageImportPath=$(echo "${detailsArray[3]}" | sed 's/.$//')
 
     # Export image file
-    # DEBUG echo "Image File Name: <$currrentImageFileName>"
-    # DEBUG echo "Import Path: <$currentImageImportPath>"
-    # DEBUG echo "File ID: <$j>"
-    # DEBUG echo "Export Path: <$2>"
-    copyFile "$currrentImageFileName" "$currentImageImportPath" "$j" "$2"
+    copyFile "$currrentImageFileName" "$currentImageImportPath" "$currrentImageFileId" "$2"
     let IMGCOUNTER++
 
     # Handle sidecare file (XMP) if any
-    if [ "$(getImageSidecarFileName $j)" != "" ];
+    if [[ "$currentImageSidecarExtensions" != "" && "$currentImageSidecarExtensions" == *"xmp"* ]];
     then
-
-      # Get current sidecare file name
-      currentImageSidecarFileName=$(getImageSidecarFileName $j)
+      # Determine sidecar name
+      sidecarFileName="${currrentImageFileName%.*}"
+      currentImageSidecarFileName="$sidecarFileName.xmp"
 
       # Export sidecar file
-      copyFile "$currentImageSidecarFileName" "$currentImageImportPath" "$j" "$2"
+      copyFile "$currentImageSidecarFileName" "$currentImageImportPath" "$currrentImageFileId" "$2"
       let SIDECARCOUNTER++
-
     fi
   done
 
@@ -416,18 +402,15 @@ function exportCollections
     local currrentImageExportPath
     currrentImageExportPath=$(getImageExportPath $i)
 
-    # Export Images
-    # DEBUG echo "Collection ID: <$i>"
-    # DEBUG echo "Export Path <$currrentImageExportPath>"
-
     # Get IDs of images within current collection
-    local currentImageIds
-    currentImageIds=$(getImageIdsInCollection $i)
+    local currentImageDetails
+    currentImageDetails=$(getImageDetailsInCollection $i)
 
     # Check if current collection really contains any images
-    if [ "$currentImageIds" != "" ];
+    if [ "$currentImageDetails" != "" ];
     then
-      exportImages "$currentImageIds" "$currrentImageExportPath"
+      # Export Images
+      exportImages "$currentImageDetails" "$currrentImageExportPath"
     fi
 
   done
@@ -456,7 +439,7 @@ function exportImagesNotInAnyCollection
   folderBaseName="Unspezifiziert"
 
   # Current image Ids
-  local currentImageIds
+  local currentImageDetails
 
   # Prepare years string
   separateYears=${YEARS//\'/} # remove quote
@@ -471,16 +454,16 @@ function exportImagesNotInAnyCollection
   for i in $separateYears;
   do
     # Get IDs of images within current year
-    currentImageIds=$(getImageIdsNotInAnyCollectionByYear $i)
+    currentImageDetails=$(getImageDetailsNotInAnyCollectionByYear $i)
 
     # In case there are images for given years
-    if [ "$currentImageIds" != "" ];
+    if [ "$currentImageDetails" != "" ];
     then
       # Define export path
       currrentImageExportPath="$i $folderBaseName"
 
       # Export Images
-      exportImages "$currentImageIds" "$currrentImageExportPath"
+      exportImages "$currentImageDetails" "$currrentImageExportPath"
 
       # Append SQL WHERE
       if [ "$sqlWHERE" != "" ];
@@ -498,10 +481,10 @@ function exportImagesNotInAnyCollection
   fi
 
   # Export left images for other years
-  currentImageIds=$(getImageIdsNotInAnyCollectionFilterByYears $sqlWHERE)
-  if [ "$currentImageIds" != "" ];
+  currentImageDetails=$(getImageDetailsNotInAnyCollectionFilterByYears $sqlWHERE)
+  if [ "$currentImageDetails" != "" ];
   then
-    exportImages "$currentImageIds" "$folderBaseName"
+    exportImages "$currentImageDetails" "$folderBaseName"
   fi
 
   # Inform about end of non-collections export
