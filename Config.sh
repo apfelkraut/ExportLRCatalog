@@ -30,9 +30,3 @@ IMPORTDIR="$HOME/Pictures"
 
 # Directory where the files shall be exported  (without trailing slash)
 EXPORTDIR="$HOME/Downloads/LR_Export"
-
-# Debug log file
-DEBUGLOGFILE=$EXPORTDIR/ExportLRCollections_debug.log
-
-# Error log file
-ERRORLOGFILE=$EXPORTDIR/ExportLRCollections_stderr.log

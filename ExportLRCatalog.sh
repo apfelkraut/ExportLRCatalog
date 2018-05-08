@@ -33,6 +33,74 @@
 # Import configuration
 source Config.sh
 
+# Check if LR catalog exists
+if [ ! -f "$CATALOG" ];
+then
+  echo -e "LR catalog not found at $CATALOG."
+  exit 1
+fi
+
+# Check if LR application is open and locking the catalog
+if [ -f "$LOCK_FILE" ];
+then
+  echo -e "LR catalog appears to be locked. Please quit Lightroom before running this script."
+  exit 1
+fi
+
+# Check if import directory exists
+if [ ! -d "$IMPORTDIR" ] ;
+then
+  echo -e "Import directory $IMPORTDIR not found."
+  exit 1
+fi
+
+# Check if export directory exists
+if [ ! -d "$EXPORTDIR" ] ;
+then
+  echo -e "Export directory $EXPORTDIR not found."
+  exit 1
+fi
+
+# Debug log file
+DEBUGLOGFILE=$EXPORTDIR/ExportLRCollections_debug.log
+
+# Error log file
+ERRORLOGFILE=$EXPORTDIR/ExportLRCollections_stderr.log
+
+# Check if export directory is writeable
+if ! touch $DEBUGLOGFILE || ! touch $ERRORLOGFILE ;
+then
+  echo -e "Export directory $EXPORTDIR it not writable."
+  exit 1
+fi
+
+# Check if sqlite3 is available
+if ! which sqlite3 ;
+then
+  echo -e "Command line interface for SQLite 3 (sqlite3) not found."
+  exit 1
+fi
+
+# Check if sed is available
+if ! which sed ;
+then
+  echo -e "GNU stream editor (sed) not found."
+  exit 1
+fi
+
+# Check if bc is available
+if ! which bc ;
+then
+  echo -e "GNU bc (bc) not found."
+  exit 1
+fi
+
+# Write a dedicated error log
+exec 2>$ERRORLOGFILE
+
+# Immediately stop in case of error
+# set -e
+
 # Pass all global variables to child processes
 export DRYRUN
 export FLATEXPORT
@@ -496,68 +564,6 @@ function exportImagesNotInAnyCollection
   echo -e $endExportNonColMsg >> $ERRORLOGFILE
 
 }
-
-# Write a dedicated error log
-exec 2>$ERRORLOGFILE
-
-# Immediately stop in case of error
-# set -e
-
-# Check if LR catalog exists
-if [ ! -f "$CATALOG" ];
-then
-  echo -e "LR catalog not found at $CATALOG."
-  exit 1
-fi
-
-# Check if LR application is open and locking the catalog
-if [ -f "$LOCK_FILE" ];
-then
-  echo -e "LR catalog appears to be locked. Please quit Lightroom before running this script."
-  exit 1
-fi
-
-# Check if import directory exists
-if [ ! -d "$IMPORTDIR" ] ;
-then
-  echo -e "Import directory $IMPORTDIR not found."
-  exit 1
-fi
-
-# Check if export directory exists
-if [ ! -d "$EXPORTDIR" ] ;
-then
-  echo -e "Export directory $EXPORTDIR not found."
-  exit 1
-fi
-
-# Check if export directory is writeable
-if ! touch $DEBUGLOGFILE || ! touch $ERRORLOGFILE ;
-then
-  echo -e "Export directory $EXPORTDIR it not writable."
-  exit 1
-fi
-
-# Check if sqlite3 is available
-if ! which sqlite3 ;
-then
-  echo -e "Command line interface for SQLite 3 (sqlite3) not found."
-  exit 1
-fi
-
-# Check if sed is available
-if ! which sed ;
-then
-  echo -e "GNU stream editor (sed) not found."
-  exit 1
-fi
-
-# Check if bc is available
-if ! which bc ;
-then
-  echo -e "GNU bc (bc) not found."
-  exit 1
-fi
 
 # Now let's really start
 startCatMsg="$(date +%Y-%m-%d' '%H:%M:%S) [START] Starting exporting all collections of LR catalog <$CATALOG> ..."
