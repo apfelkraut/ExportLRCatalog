@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# ExportLRCatalog.sh Version 0.8 BETA
+# ExportLRCatalog.sh Version 0.86 BETA
 # Copyright (ɔ) 2018 Apfelkraut.org
 #
 # This program is free software: you can redistribute it and/or modify
@@ -61,14 +61,20 @@ then
   exit 1
 fi
 
+# Uncomment to write debug log
+# set -x
+# exec 5> $EXPORTDIR/ExportLRCollections_debug.log
+# BASH_XTRACEFD="5"
+# PS4='$LINENO: '
+
 # Debug log file
-DEBUGLOGFILE=$EXPORTDIR/ExportLRCollections_debug.log
+REPORTLOGFILE=$EXPORTDIR/ExportLRCollections_report.log
 
 # Error log file
-ERRORLOGFILE=$EXPORTDIR/ExportLRCollections_stderr.log
+ERRORLOGFILE=$EXPORTDIR/ExportLRCollections_errors.log
 
 # Check if export directory is writeable
-if ! touch $DEBUGLOGFILE || ! touch $ERRORLOGFILE ;
+if ! touch $REPORTLOGFILE || ! touch $ERRORLOGFILE ;
 then
   echo -e "Export directory $EXPORTDIR it not writable."
   exit 1
@@ -112,17 +118,8 @@ export CATALOG
 export LOCK_FILE
 export IMPORTDIR
 export EXPORTDIR
-export DEBUGLOGFILE
+export REPORTLOGFILE
 export ERRORLOGFILE
-
-#
-# Input         $1      a string
-# Return                the string, trimmed
-#
-function trim
-{
-  echo -e "$1" | sed 's/^ *//' | sed 's/ *$//'
-}
 
 #
 # Input         $1      a SQL query
@@ -130,7 +127,7 @@ function trim
 #
 function query
 {
-  trim "`sqlite3 "$CATALOG" "$1" | tr '\n' ' '`"
+  sqlite3 "$CATALOG" "$1"
 }
 
 #
@@ -190,7 +187,7 @@ function countLRImages
 function countAllCollections
 {
   # Blacklist
-  echo `query "SELECT count(id_local) FROM AgLibraryCollection WHERE creationId='com.adobe.ag.library.collection' and id_local NOT IN $BLACKLISTEDCOLLECTIONS;"`
+  query "SELECT count(id_local) FROM AgLibraryCollection WHERE creationId='com.adobe.ag.library.collection' and id_local NOT IN $BLACKLISTEDCOLLECTIONS;"
 }
 
 #
@@ -220,7 +217,7 @@ function getCollectionParent
 #
 function getImageIdsInCollection
 {
-  echo `query "SELECT lf.id_local FROM AgLibraryCollection AS c JOIN AgLibraryCollectionImage AS ci ON c.id_local == ci.collection JOIN Adobe_images AS i ON i.id_local == ci.image JOIN AgLibraryFile AS lf ON lf.id_local == i.rootFile WHERE i.copyName IS NULL AND c.id_local == $1;"`
+  query "SELECT lf.id_local FROM AgLibraryCollection AS c JOIN AgLibraryCollectionImage AS ci ON c.id_local == ci.collection JOIN Adobe_images AS i ON i.id_local == ci.image JOIN AgLibraryFile AS lf ON lf.id_local == i.rootFile WHERE i.copyName IS NULL AND c.id_local == $1;"
 }
 
 #
@@ -229,7 +226,7 @@ function getImageIdsInCollection
 #
 function getImageDetailsInCollection
 {
-  echo `query "SELECT lf.id_local, lf.idx_filename, lf.sidecarExtensions, lfo.PathFromRoot FROM AgLibraryCollection AS c JOIN AgLibraryCollectionImage AS ci ON c.id_local == ci.collection JOIN Adobe_images AS i ON i.id_local == ci.image JOIN AgLibraryFile AS lf ON lf.id_local == i.rootFile JOIN AgLibraryFolder AS lfo ON lfo.id_local == lf.folder WHERE i.copyName IS NULL AND c.id_local == $1;"`
+  query "SELECT lf.id_local, lf.idx_filename, lf.sidecarExtensions, lfo.PathFromRoot FROM AgLibraryCollection AS c JOIN AgLibraryCollectionImage AS ci ON c.id_local == ci.collection JOIN Adobe_images AS i ON i.id_local == ci.image JOIN AgLibraryFile AS lf ON lf.id_local == i.rootFile JOIN AgLibraryFolder AS lfo ON lfo.id_local == lf.folder WHERE i.copyName IS NULL AND c.id_local == $1;"
 }
 
 #
@@ -238,7 +235,7 @@ function getImageDetailsInCollection
 #
 function getImageDetailsNotInAnyCollectionByYear
 {
-  echo `query "SELECT lf.id_local, lf.idx_filename, lf.sidecarExtensions, lfo.PathFromRoot FROM Adobe_images AS i JOIN AgLibraryFile AS lf ON i.rootFile == lf.id_local JOIN AgLibraryFolder AS lfo ON lfo.id_local == lf.folder WHERE i.captureTime LIKE '$1%' AND i.copyName IS NULL AND lf.id_local NOT IN (SELECT lf.id_local FROM AgLibraryCollection AS c JOIN AgLibraryCollectionImage AS ci ON c.id_local == ci.collection JOIN Adobe_images AS i ON i.id_local == ci.image JOIN AgLibraryFile AS lf ON lf.id_local == i.rootFile WHERE i.copyName IS NULL AND c.creationId='com.adobe.ag.library.collection' AND c.id_local NOT IN $BLACKLISTEDCOLLECTIONS);"`
+  query "SELECT lf.id_local, lf.idx_filename, lf.sidecarExtensions, lfo.PathFromRoot FROM Adobe_images AS i JOIN AgLibraryFile AS lf ON i.rootFile == lf.id_local JOIN AgLibraryFolder AS lfo ON lfo.id_local == lf.folder WHERE i.captureTime LIKE '$1%' AND i.copyName IS NULL AND lf.id_local NOT IN (SELECT lf.id_local FROM AgLibraryCollection AS c JOIN AgLibraryCollectionImage AS ci ON c.id_local == ci.collection JOIN Adobe_images AS i ON i.id_local == ci.image JOIN AgLibraryFile AS lf ON lf.id_local == i.rootFile WHERE i.copyName IS NULL AND c.creationId='com.adobe.ag.library.collection' AND c.id_local NOT IN $BLACKLISTEDCOLLECTIONS);"
 }
 
 #
@@ -247,7 +244,7 @@ function getImageDetailsNotInAnyCollectionByYear
 #
 function getImageDetailsNotInAnyCollectionFilterByYears
 {
-  echo `query "SELECT lf.id_local, lf.idx_filename, lf.sidecarExtensions, lfo.PathFromRoot FROM Adobe_images AS i JOIN AgLibraryFile AS lf ON i.rootFile == lf.id_local JOIN AgLibraryFolder AS lfo ON lfo.id_local == lf.folder WHERE $1 i.copyName IS NULL AND lf.id_local NOT IN (SELECT lf.id_local FROM AgLibraryCollection AS c JOIN AgLibraryCollectionImage AS ci ON c.id_local == ci.collection JOIN Adobe_images AS i ON i.id_local == ci.image JOIN AgLibraryFile AS lf ON lf.id_local == i.rootFile WHERE i.copyName IS NULL AND c.creationId='com.adobe.ag.library.collection' AND c.id_local NOT IN $BLACKLISTEDCOLLECTIONS);"`
+  query "SELECT lf.id_local, lf.idx_filename, lf.sidecarExtensions, lfo.PathFromRoot FROM Adobe_images AS i JOIN AgLibraryFile AS lf ON i.rootFile == lf.id_local JOIN AgLibraryFolder AS lfo ON lfo.id_local == lf.folder WHERE $1 i.copyName IS NULL AND lf.id_local NOT IN (SELECT lf.id_local FROM AgLibraryCollection AS c JOIN AgLibraryCollectionImage AS ci ON c.id_local == ci.collection JOIN Adobe_images AS i ON i.id_local == ci.image JOIN AgLibraryFile AS lf ON lf.id_local == i.rootFile WHERE i.copyName IS NULL AND c.creationId='com.adobe.ag.library.collection' AND c.id_local NOT IN $BLACKLISTEDCOLLECTIONS);"
 }
 
 #
@@ -266,12 +263,13 @@ function getAllCollectionIDs
 function getImageExportPath
 {
   local exportPath
-  exportPath=$(getCollectionName $1)
   local currentCollectionId
+
+  exportPath="$(getCollectionName $1)"
   currentCollectionId=$1
   while :
   do
-    currentCollectionId=$(getCollectionParent $currentCollectionId)
+    currentCollectionId="$(getCollectionParent $currentCollectionId)"
     if [ "$currentCollectionId" == "" ];
     then
       break
@@ -284,7 +282,7 @@ function getImageExportPath
       exportPath="$(getCollectionName $currentCollectionId)/$exportPath"
     fi
   done
-  echo -e $exportPath
+  echo -e "$exportPath"
 }
 
 #
@@ -299,15 +297,15 @@ function copyFile
   # FIXME - support resume
 
   # Check for null values
-  checkNullOrEmpty $1 "copyFile P1"
-  checkNullOrEmpty $2 "copyFile P2"
-  checkNullOrEmpty $3 "copyFile P3"
-  checkNullOrEmpty $4 "copyFile P4"
+  checkNullOrEmpty "$1" "copyFile P1"
+  checkNullOrEmpty "$2" "copyFile P2"
+  checkNullOrEmpty "$3" "copyFile P3"
+  checkNullOrEmpty "$4" "copyFile P4"
 
   local SOURCE
   local DESTINATION
 
-  SOURCE=$IMPORTDIR/$2/$1
+  SOURCE="$IMPORTDIR/$2/$1"
 
   # check if file shall be renamed
   if [ "$RENAME" == "true" ];
@@ -315,9 +313,11 @@ function copyFile
     # prefix for new filename
     prefixNewFilename="ALR_"
 
+    # extract filename
+    fileName="${1%.*}"
+
     # extract extension
     fileExtension="${1##*.}"
-    fileName="${1%.*}"
 
     # generate new filename based on id
     DESTINATION="$EXPORTDIR/$4/$prefixNewFilename$3.$fileExtension"
@@ -329,7 +329,7 @@ function copyFile
 
   if [ "$DRYRUN" == "true" ];
   then
-    echo -e "$(date +%Y-%m-%d' '%H:%M:%S) [DRYRUN] Exporting $SOURCE to $DESTINATION ..." >> $DEBUGLOGFILE
+    echo -e "$(date +%Y-%m-%d' '%H:%M:%S) [DRYRUN] Exporting $SOURCE to $DESTINATION ..." >> $REPORTLOGFILE
   else
     if cp "$SOURCE" "$DESTINATION" ;
     then
@@ -343,7 +343,7 @@ function copyFile
         sed -e 's/'"$fileName"'/'"$prefixNewFilename$3"'/g' <"$DESTINATION.bak" >"$DESTINATION" && rm "$DESTINATION.bak"
       fi
 
-      echo -e "$(date +%Y-%m-%d' '%H:%M:%S) [SUCCESS] Exporting $SOURCE to $DESTINATION ..." >> $DEBUGLOGFILE
+      echo -e "$(date +%Y-%m-%d' '%H:%M:%S) [SUCCESS] Exporting $SOURCE to $DESTINATION ..." >> $REPORTLOGFILE
     else
       echo -e "$(date +%Y-%m-%d' '%H:%M:%S) [ERROR] Exporting $SOURCE to $DESTINATION ..." >> $ERRORLOGFILE
     fi
@@ -357,8 +357,8 @@ function copyFile
 function exportImages
 {
   # Check for null values
-  checkNullOrEmpty $1 "exportImages P1"
-  checkNullOrEmpty $2 "exportImages P2"
+  checkNullOrEmpty "$1" "exportImages P1"
+  checkNullOrEmpty "$2" "exportImages P2"
 
   # Counters for proper stats
   local IMGCOUNTER
@@ -375,24 +375,30 @@ function exportImages
   # Inform about start
   local startExportImgsMsg
   startExportImgsMsg="$(date +%Y-%m-%d' '%H:%M:%S) [START] Starting export to directory <$2> ..."
-  echo -e $startExportImgsMsg
-  echo -e $startExportImgsMsg >> $DEBUGLOGFILE
-  echo -e $startExportImgsMsg >> $ERRORLOGFILE
+  echo -e "$startExportImgsMsg"
+  echo -e "$startExportImgsMsg" >> $REPORTLOGFILE
+  echo -e "$startExportImgsMsg" >> $ERRORLOGFILE
 
   # Check if export path for collection already exists
   if [ ! -d "$currentExportDir" ]; then
     # Path does not exist => create it
     if [ "$DRYRUN" == "true" ]; then
-      echo -e "$(date +%Y-%m-%d' '%H:%M:%S) [DRYRUN] Creating directory $currentExportDir ..." >> $DEBUGLOGFILE
+      echo -e "$(date +%Y-%m-%d' '%H:%M:%S) [DRYRUN] Creating directory $currentExportDir ..." >> $REPORTLOGFILE
     else
       if mkdir -p "$currentExportDir" ;
       then
-        echo -e "$(date +%Y-%m-%d' '%H:%M:%S) [SUCCESS] Creating directory $currentExportDir ..." >> $DEBUGLOGFILE
+        echo -e "$(date +%Y-%m-%d' '%H:%M:%S) [SUCCESS] Creating directory $currentExportDir ..." >> $REPORTLOGFILE
       else
         echo -e "$(date +%Y-%m-%d' '%H:%M:%S) [ERROR] Creating directory $currentExportDir ..." >> $ERRORLOGFILE
       fi
     fi
   fi
+
+  # Save default IFS
+  DEFAULT_IFS_1="$IFS"
+
+  # Set to newline in order to preserve spaces within image details
+  IFS=$'\n'
 
   # Copy all images of collection to export directory
   for j in $1; do
@@ -406,13 +412,13 @@ function exportImages
     local currentImageImportPath
 
     # Save default IFS
-    DEFAULT_IFS=$IFS
+    DEFAULT_IFS_2="$IFS"
 
     # Split image details
-    IFS='|' read -a detailsArray <<< "$j"
+    IFS='|' read -a detailsArray <<< $j
 
     # Restore default IFS
-    IFS=$DEFAULT_IFS
+    IFS="$DEFAULT_IFS_2"
 
     # Get current image id
     currrentImageFileId=${detailsArray[0]}
@@ -424,7 +430,7 @@ function exportImages
     currentImageSidecarExtensions=${detailsArray[2]}
 
     # Get currrent image file name without trailing slash
-    currentImageImportPath=$(echo "${detailsArray[3]}" | sed 's/.$//')
+    currentImageImportPath="$(echo ${detailsArray[3]} | sed 's/.$//')"
 
     # Export image file
     copyFile "$currrentImageFileName" "$currentImageImportPath" "$currrentImageFileId" "$2"
@@ -443,12 +449,15 @@ function exportImages
     fi
   done
 
+  # Restore default IFS
+  IFS="$DEFAULT_IFS_1"
+
   # Inform about finishing export of images
   local endExportImgsMsg
   endExportImgsMsg="$(date +%Y-%m-%d' '%H:%M:%S) [END] Finished export to directory <$2> ($IMGCOUNTER images, $SIDECARCOUNTER xmp-files, $(($SECONDS - $START_TIME)) seconds)."
-  echo -e $endExportImgsMsg
-  echo -e $endExportImgsMsg >> $DEBUGLOGFILE
-  echo -e $endExportImgsMsg >> $ERRORLOGFILE
+  echo -e "$endExportImgsMsg"
+  echo -e "$endExportImgsMsg" >> "$REPORTLOGFILE"
+  echo -e "$endExportImgsMsg" >> "$ERRORLOGFILE"
 }
 
 #
@@ -459,9 +468,9 @@ function exportCollections
   # Inform about start of collections export
   local startExportCollMsg
   startExportCollMsg="$(date +%Y-%m-%d' '%H:%M:%S) [START] Exporting all collections of LR catalog <$CATALOG> ..."
-  echo -e $startExportCollMsg
-  echo -e $startExportCollMsg >> $DEBUGLOGFILE
-  echo -e $startExportCollMsg >> $ERRORLOGFILE
+  echo -e "$startExportCollMsg"
+  echo -e "$startExportCollMsg" >> "$REPORTLOGFILE"
+  echo -e "$startExportCollMsg" >> "$ERRORLOGFILE"
 
   # Walk over all collections
   for i in $(getAllCollectionIDs);
@@ -469,11 +478,11 @@ function exportCollections
 
     # Get current export path
     local currrentImageExportPath
-    currrentImageExportPath=$(getImageExportPath $i)
+    currrentImageExportPath="$(getImageExportPath $i)"
 
     # Get details of images within current collection
     local currentImagesDetails
-    currentImagesDetails=$(getImageDetailsInCollection $i)
+    currentImagesDetails="$(getImageDetailsInCollection $i)"
 
     # Check if current collection really contains any images
     if [ "$currentImagesDetails" != "" ];
@@ -487,9 +496,9 @@ function exportCollections
   # Inform about end of collections export
   local endExportCollMsg
   endExportCollMsg="$(date +%Y-%m-%d' '%H:%M:%S) [END] Exported all collections of LR catalog <$CATALOG> ..."
-  echo -e $endExportCollMsg
-  echo -e $endExportCollMsg >> $DEBUGLOGFILE
-  echo -e $endExportCollMsg >> $ERRORLOGFILE
+  echo -e "$endExportCollMsg"
+  echo -e "$endExportCollMsg" >> "$REPORTLOGFILE"
+  echo -e "$endExportCollMsg" >> "$ERRORLOGFILE"
 }
 
 #
@@ -500,9 +509,9 @@ function exportImagesNotInAnyCollection
   # Inform about start of non-collections export
   local startExportNonColMsg
   startExportNonColMsg="$(date +%Y-%m-%d' '%H:%M:%S) [START] Exporting all images that are not part of a collection of LR catalog <$CATALOG> ..."
-  echo -e $startExportNonColMsg
-  echo -e $startExportNonColMsg >> $DEBUGLOGFILE
-  echo -e $startExportNonColMsg >> $ERRORLOGFILE
+  echo -e "$startExportNonColMsg"
+  echo -e "$startExportNonColMsg" >> "$REPORTLOGFILE"
+  echo -e "$startExportNonColMsg" >> "$ERRORLOGFILE"
 
   # Base name of unspecified folder(s)
   folderBaseName="Unspezifiziert"
@@ -520,16 +529,16 @@ function exportImagesNotInAnyCollection
   sqlWHERE=""
 
   # Get images for given years
-  for i in $separateYears;
+  for y in $separateYears;
   do
     # Get details of images within current year
-    currentImagesDetails=$(getImageDetailsNotInAnyCollectionByYear $i)
+    currentImagesDetails=$(getImageDetailsNotInAnyCollectionByYear $y)
 
     # In case there are images for given years
     if [ "$currentImagesDetails" != "" ];
     then
       # Define export path
-      currrentImageExportPath="$i $folderBaseName"
+      currrentImageExportPath="$y $folderBaseName"
 
       # Export Images
       exportImages "$currentImagesDetails" "$currrentImageExportPath"
@@ -539,7 +548,7 @@ function exportImagesNotInAnyCollection
       then
         sqlWHERE+=" AND "
       fi
-      sqlWHERE+="i.captureTime NOT LIKE '$i%'"
+      sqlWHERE+="i.captureTime NOT LIKE '$y%'"
     fi
   done
 
@@ -550,7 +559,7 @@ function exportImagesNotInAnyCollection
   fi
 
   # Export left images for other years
-  currentImagesDetails=$(getImageDetailsNotInAnyCollectionFilterByYears $sqlWHERE)
+  currentImagesDetails="$(getImageDetailsNotInAnyCollectionFilterByYears $sqlWHERE)"
   if [ "$currentImagesDetails" != "" ];
   then
     exportImages "$currentImagesDetails" "$folderBaseName"
@@ -559,24 +568,24 @@ function exportImagesNotInAnyCollection
   # Inform about end of non-collections export
   local endExportNonColMsg
   endExportNonColMsg="$(date +%Y-%m-%d' '%H:%M:%S) [END] Exported all images that are not part of a collection of LR catalog <$CATALOG> ..."
-  echo -e $endExportNonColMsg
-  echo -e $endExportNonColMsg >> $DEBUGLOGFILE
-  echo -e $endExportNonColMsg >> $ERRORLOGFILE
+  echo -e "$endExportNonColMsg"
+  echo -e "$endExportNonColMsg" >> "$REPORTLOGFILE"
+  echo -e "$endExportNonColMsg" >> "$ERRORLOGFILE"
 
 }
 
 # Now let's really start
 startCatMsg="$(date +%Y-%m-%d' '%H:%M:%S) [START] Starting exporting all collections of LR catalog <$CATALOG> ..."
 
-echo -e $startCatMsg >> $ERRORLOGFILE
+echo -e "$startCatMsg" >> "$ERRORLOGFILE"
 
 # Generate statistics
-numAllCollections=$(countAllCollections)
-numImagesInAnyCollection=$(countImagesInAnyCollection)
-numImagesInAnyCollectionDistinct=$(countImagesInAnyCollectionDistinct)
-numImagesNotInAnyCollection=$(countImagesNotInAnyCollection)
-numImagesFiles=$(countImagesFiles)
-numLRImages=$(countLRImages)
+numAllCollections="$(countAllCollections)"
+numImagesInAnyCollection="$(countImagesInAnyCollection)"
+numImagesInAnyCollectionDistinct="$(countImagesInAnyCollectionDistinct)"
+numImagesNotInAnyCollection="$(countImagesNotInAnyCollection)"
+numImagesFiles="$(countImagesFiles)"
+numLRImages="$(countLRImages)"
 duplicationRate=`echo "scale=3;$numImagesInAnyCollection/$numImagesInAnyCollectionDistinct" | bc -l`
 
 # Header of stats
@@ -607,8 +616,8 @@ startCatMsg+="\n"
 # Footer of stats
 startCatMsg+="----------------------------------"
 
-echo -e $startCatMsg
-echo -e $startCatMsg >> $DEBUGLOGFILE
+echo -e "$startCatMsg"
+echo -e "$startCatMsg" >> "$REPORTLOGFILE"
 
 # Export all images that are part of a collections
 exportCollections
