@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# ExportLRCatalog.sh Version 0.86 BETA
+# ExportLRCatalog.sh Version 0.87 BETA
 # Copyright (ɔ) 2018 Apfelkraut.org
 #
 # This program is free software: you can redistribute it and/or modify
@@ -482,7 +482,7 @@ function exportCollections
 
     # Get details of images within current collection
     local currentImagesDetails
-    currentImagesDetails="$(getImageDetailsInCollection $i)"
+    currentImagesDetails=$(getImageDetailsInCollection $i)
 
     # Check if current collection really contains any images
     if [ "$currentImagesDetails" != "" ];
@@ -538,7 +538,7 @@ function exportImagesNotInAnyCollection
     if [ "$currentImagesDetails" != "" ];
     then
       # Define export path
-      currrentImageExportPath="$y $folderBaseName"
+      currrentImageExportPath="${y}_${folderBaseName}"
 
       # Export Images
       exportImages "$currentImagesDetails" "$currrentImageExportPath"
@@ -559,7 +559,7 @@ function exportImagesNotInAnyCollection
   fi
 
   # Export left images for other years
-  currentImagesDetails="$(getImageDetailsNotInAnyCollectionFilterByYears $sqlWHERE)"
+  currentImagesDetails=$(getImageDetailsNotInAnyCollectionFilterByYears "$sqlWHERE")
   if [ "$currentImagesDetails" != "" ];
   then
     exportImages "$currentImagesDetails" "$folderBaseName"
