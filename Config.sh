@@ -12,7 +12,7 @@ RENAME=false
 
 # Seperator to be used when multiple collection (group) names are combined to
 # a single directory name during export (see FLATEXPORT). Otherwise being ignored.
-COLLECTIONHIERACHYSEP=" - "
+COLLECTIONHIERACHYSEP="_"
 
 # Which collections shall not be exported? (e.g. the Quick Collection)
 BLACKLISTEDCOLLECTIONS="('21')"
