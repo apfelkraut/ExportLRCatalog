@@ -68,13 +68,13 @@ fi
 # PS4='$LINENO: '
 
 # Debug log file
-REPORTLOGFILE=$EXPORTDIR/ExportLRCollections_report.log
+REPORTLOGFILE="$EXPORTDIR/ExportLRCollections_report.log"
 
 # Error log file
-ERRORLOGFILE=$EXPORTDIR/ExportLRCollections_errors.log
+ERRORLOGFILE="$EXPORTDIR/ExportLRCollections_errors.log"
 
 # Check if export directory is writeable
-if ! touch $REPORTLOGFILE || ! touch $ERRORLOGFILE ;
+if ! touch "$REPORTLOGFILE" || ! touch "$ERRORLOGFILE" ;
 then
   echo -e "Export directory $EXPORTDIR it not writable."
   exit 1
@@ -102,7 +102,7 @@ then
 fi
 
 # Write a dedicated error log
-exec 2>$ERRORLOGFILE
+exec 2>"$ERRORLOGFILE"
 
 # Immediately stop in case of error
 # set -e
@@ -376,20 +376,20 @@ function exportImages
   local startExportImgsMsg
   startExportImgsMsg="$(date +%Y-%m-%d' '%H:%M:%S) [START] Starting export to directory <$2> ..."
   echo -e "$startExportImgsMsg"
-  echo -e "$startExportImgsMsg" >> $REPORTLOGFILE
-  echo -e "$startExportImgsMsg" >> $ERRORLOGFILE
+  echo -e "$startExportImgsMsg" >> "$REPORTLOGFILE"
+  echo -e "$startExportImgsMsg" >> "$ERRORLOGFILE"
 
   # Check if export path for collection already exists
   if [ ! -d "$currentExportDir" ]; then
     # Path does not exist => create it
     if [ "$DRYRUN" == "true" ]; then
-      echo -e "$(date +%Y-%m-%d' '%H:%M:%S) [DRYRUN] Creating directory $currentExportDir ..." >> $REPORTLOGFILE
+      echo -e "$(date +%Y-%m-%d' '%H:%M:%S) [DRYRUN] Creating directory $currentExportDir ..." >> "$REPORTLOGFILE"
     else
       if mkdir -p "$currentExportDir" ;
       then
-        echo -e "$(date +%Y-%m-%d' '%H:%M:%S) [SUCCESS] Creating directory $currentExportDir ..." >> $REPORTLOGFILE
+        echo -e "$(date +%Y-%m-%d' '%H:%M:%S) [SUCCESS] Creating directory $currentExportDir ..." >> "$REPORTLOGFILE"
       else
-        echo -e "$(date +%Y-%m-%d' '%H:%M:%S) [ERROR] Creating directory $currentExportDir ..." >> $ERRORLOGFILE
+        echo -e "$(date +%Y-%m-%d' '%H:%M:%S) [ERROR] Creating directory $currentExportDir ..." >> "$ERRORLOGFILE"
       fi
     fi
   fi
